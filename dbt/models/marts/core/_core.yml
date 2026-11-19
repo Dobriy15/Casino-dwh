@@ -1,0 +1,157 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: Conformed calendar dimension (2015-2030).
+    columns:
+      - name: date_key
+        description: Integer key yyyymmdd.
+        data_tests: [unique, not_null]
+
+  - name: dim_country
+    description: Countries of operation (EE, LV, LT, HR) with the currently valid currency.
+    columns:
+      - name: country_code
+        description: ISO 3166-1 alpha-2.
+        data_tests: [unique, not_null]
+
+  - name: dim_currency
+    description: Currencies in which casino transactions are recorded.
+    columns:
+      - name: currency_code
+        description: ISO 4217.
+        data_tests: [unique, not_null]
+
+  - name: dim_casino
+    description: Physical casino locations.
+    columns:
+      - name: casino_sk
+        data_tests: [unique, not_null]
+      - name: casino_id
+        data_tests: [unique, not_null]
+      - name: country_code
+        data_tests:
+          - relationships: {arguments: {to: ref('dim_country'), field: country_code}}
+
+  - name: dim_client
+    description: >
+      SCD Type 2 client dimension. One row per version of a client. Tracked attributes:
+      name, residence country, identity document, email, self-exclusion flag.
+      `person_key` (document type + number + issuing country) uniquely identifies the physical person.
+    data_tests:
+      - scd2_valid_intervals:
+          arguments: {business_key: client_id}
+    columns:
+      - name: client_sk
+        description: Surrogate key of a client version.
+        data_tests: [unique, not_null]
+      - name: client_id
+        description: Source system key (stable across versions).
+        data_tests: [not_null]
+      - name: person_key
+        description: Hash of the identity document - business key of the physical person.
+        data_tests: [not_null]
+      - name: residence_country_code
+        data_tests:
+          - relationships: {arguments: {to: ref('dim_country'), field: country_code}}
+      - name: registration_casino_id
+        data_tests:
+          - relationships: {arguments: {to: ref('dim_casino'), field: casino_id}}
+
+  - name: dim_gaming_machine
+    description: Physical slot / electronic gaming machines.
+    columns:
+      - name: machine_sk
+        data_tests: [unique, not_null]
+      - name: casino_sk
+        data_tests:
+          - relationships: {arguments: {to: ref('dim_casino'), field: casino_sk}}
+
+  - name: dim_game
+    description: Game titles that can be installed on machines.
+    columns:
+      - name: game_sk
+        data_tests: [unique, not_null]
+
+  - name: bridge_machine_game
+    description: Time-bounded many-to-many between machines and installed games.
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [machine_id, game_id, installed_from]}
+    columns:
+      - name: machine_sk
+        data_tests:
+          - relationships: {arguments: {to: ref('dim_gaming_machine'), field: machine_sk}}
+      - name: game_sk
+        data_tests:
+          - relationships: {arguments: {to: ref('dim_game'), field: game_sk}}
+
+  - name: dim_gaming_table
+    description: Gaming tables with their (denormalised) table type.
+    columns:
+      - name: table_sk
+        data_tests: [unique, not_null]
+      - name: table_type_code
+        data_tests: [not_null]
+
+  - name: fct_fx_rate_daily
+    description: Daily exchange rate to the reporting currency (EUR) for every currency.
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [rate_date, currency_code]}
+
+  - name: fct_casino_visit
+    description: "Grain: one client entering one casino."
+    columns:
+      - name: visit_id
+        data_tests: [unique, not_null]
+      - name: visit_date
+        description: Gaming day of entry (cut-off var gaming_day_cutoff_hour).
+      - name: client_sk
+        description: Client version valid at the moment of entry.
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: ref('dim_client'), field: client_sk}}
+      - name: casino_sk
+        data_tests:
+          - relationships: {arguments: {to: ref('dim_casino'), field: casino_sk}}
+
+  - name: fct_machine_gameplay
+    description: "Grain: one game round on a gaming machine by one client."
+    data_tests:
+      - relationships:
+          arguments: {column_name: machine_sk, to: ref('dim_gaming_machine'), field: machine_sk}
+      - relationships:
+          arguments: {column_name: game_sk, to: ref('dim_game'), field: game_sk}
+    columns: &gameplay_cols
+      - name: gameplay_id
+        data_tests: [unique, not_null]
+      - name: game_date_key
+        data_tests:
+          - relationships: {arguments: {to: ref('dim_date'), field: date_key}}
+      - name: client_sk
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: ref('dim_client'), field: client_sk}}
+      - name: casino_sk
+        data_tests:
+          - relationships: {arguments: {to: ref('dim_casino'), field: casino_sk}}
+      - name: currency_sk
+        data_tests:
+          - relationships: {arguments: {to: ref('dim_currency'), field: currency_sk}}
+      - name: fx_units_per_eur
+        description: Rate used for conversion (units of transaction currency per 1 EUR).
+        data_tests: [not_null]
+      - name: bet_amount_eur
+        data_tests: [not_null, non_negative]
+      - name: win_amount_eur
+        data_tests: [not_null, non_negative]
+      - name: ggr_eur
+        description: Gross gaming revenue (casino profit) = bet - win for settled rounds, 0 otherwise.
+
+  - name: fct_table_gameplay
+    description: "Grain: one game round at a gaming table by one client."
+    columns: *gameplay_cols
+    data_tests:
+      - relationships:
+          arguments: {column_name: table_sk, to: ref('dim_gaming_table'), field: table_sk}

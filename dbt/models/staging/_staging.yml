@@ -1,0 +1,49 @@
+version: 2
+
+models:
+  - name: stg_raw__casinos
+    columns:
+      - name: casino_id
+        data_tests: [unique, not_null]
+      - name: country_code
+        data_tests:
+          - relationships: {arguments: {to: ref('stg_raw__countries'), field: country_code}}
+  - name: stg_raw__clients_cdc
+    description: Deduplicated CDC events of the client master.
+    columns:
+      - name: cdc_operation
+        data_tests:
+          - accepted_values: {arguments: {values: ['c', 'u']}}
+      - name: document_type
+        data_tests:
+          - accepted_values: {arguments: {values: ['PASSPORT', 'ID_CARD']}}
+  - name: stg_raw__casino_visits
+    columns:
+      - name: visit_id
+        data_tests: [unique, not_null]
+  - name: stg_raw__machine_gameplays
+    columns:
+      - name: gameplay_id
+        data_tests: [unique, not_null]
+      - name: game_status
+        data_tests:
+          - accepted_values: {arguments: {values: ['win', 'loss', 'ongoing']}}
+      - name: bet_amount_local
+        data_tests: [not_null, non_negative]
+      - name: win_amount_local
+        data_tests: [not_null, non_negative]
+  - name: stg_raw__table_gameplays
+    columns:
+      - name: gameplay_id
+        data_tests: [unique, not_null]
+      - name: game_status
+        data_tests:
+          - accepted_values: {arguments: {values: ['win', 'loss', 'undefined']}}
+      - name: bet_amount_local
+        data_tests: [not_null, non_negative]
+      - name: win_amount_local
+        data_tests: [not_null, non_negative]
+  - name: stg_raw__fx_rates
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [rate_date, currency_code]}

@@ -1,0 +1,20 @@
+version: 2
+
+models:
+  - name: int_clients__scd2
+    description: Type-2 history of clients rebuilt from the CDC log.
+    data_tests:
+      - scd2_valid_intervals:
+          arguments: {business_key: client_id}
+  - name: int_fx_rates__daily
+    description: Gap-free daily FX rate per currency (units per 1 EUR).
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [rate_date, currency_code]}
+    columns:
+      - name: units_per_eur
+        data_tests: [not_null]
+      - name: rate_type
+        data_tests:
+          - accepted_values:
+              arguments: {values: ['IDENTITY', 'ECB_PUBLISHED', 'ECB_FORWARD_FILLED', 'FIXED_CONVERSION']}

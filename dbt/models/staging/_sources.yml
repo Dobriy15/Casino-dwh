@@ -1,0 +1,28 @@
+version: 2
+
+sources:
+  - name: raw
+    description: >
+      Landing zone. Parquet extracts produced by upstream ingestion
+      (OLTP dumps, Debezium-style CDC for clients, ECB FX feed).
+    meta:
+      external_location: "read_parquet('{{ env_var('RAW_DATA_PATH', '../data/raw') }}/{name}.parquet')"
+    tables:
+      - name: countries
+      - name: currencies
+      - name: country_currencies
+        description: Which currency is legal tender in a country over time (Croatia switched HRK -> EUR on 2023-01-01).
+      - name: casinos
+      - name: gaming_machines
+      - name: games
+      - name: machine_games
+        description: Installation history of games on machines (many-to-many, time-bounded).
+      - name: table_types
+      - name: gaming_tables
+      - name: clients_cdc
+        description: Change-data-capture log of the client master table. op = c (create) / u (update). May contain duplicate events.
+      - name: casino_visits
+      - name: machine_gameplays
+      - name: table_gameplays
+      - name: fx_rates
+        description: ECB reference rates, units of currency per 1 EUR, published on TARGET business days only.

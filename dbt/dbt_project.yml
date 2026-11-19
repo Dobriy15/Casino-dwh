@@ -1,0 +1,52 @@
+name: casino_dwh
+version: "1.0.0"
+config-version: 2
+profile: casino_dwh
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages", "logs"]
+
+vars:
+  # Location of the landed source extracts (Parquet). Overridable: --vars '{raw_path: s3://bucket/raw}'
+  raw_path: "{{ env_var('RAW_DATA_PATH', '../data/raw') }}"
+  # "Today" for relative reports (e.g. last 7 days). Defaults to the latest activity date in the data.
+  report_date: null
+  # Reporting currency for all monetary measures
+  reporting_currency: EUR
+  # Late-arriving data window for incremental fact loads (days)
+  incremental_lookback_days: 3
+  # Casinos run past midnight: activity before this hour (local time) belongs to the previous gaming day
+  gaming_day_cutoff_hour: 6
+
+models:
+  casino_dwh:
+    +persist_docs: {relation: true, columns: true}
+    staging:
+      +schema: staging
+      +materialized: view
+      +tags: [staging]
+    intermediate:
+      +schema: intermediate
+      +materialized: table
+      +tags: [intermediate]
+    marts:
+      core:
+        +schema: core
+        +materialized: table
+        +tags: [core]
+      reporting:
+        +schema: reporting
+        +materialized: table
+        +tags: [reporting]
+
+seeds:
+  casino_dwh:
+    +schema: reference
+
+data_tests:
+  +severity: error

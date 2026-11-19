@@ -1,0 +1,57 @@
+version: 2
+
+models:
+  - name: rpt_clients_by_country_daily
+    description: "**Q1** - unique customers per country at any given date (point-in-time, SCD2-aware)."
+    data_tests:
+      - unique_combination: {arguments: {columns: [as_of_date, country_code]}}
+    columns:
+      - name: registered_clients
+        description: Clients registered on/before as_of_date, by residence country valid on that date.
+      - name: clients_visited_to_date
+        description: Distinct clients who have entered a casino located in that country up to as_of_date.
+
+  - name: rpt_registrations_daily
+    description: New registrations per day per registering casino.
+    data_tests:
+      - unique_combination: {arguments: {columns: [registration_date, casino_id]}}
+
+  - name: rpt_new_registrations_last_7_days
+    description: "**Q2** - new registrations in the 7 days ending on the report date, per casino + total."
+
+  - name: rpt_casino_daily_visits
+    description: "**Q3** - unique visitors per casino per gaming day."
+    data_tests:
+      - unique_combination: {arguments: {columns: [visit_date, casino_id]}}
+    columns:
+      - name: unique_visitors
+        data_tests: [not_null]
+
+  - name: rpt_client_casino_daily_gaming
+    description: "**Q4 / Q5** - per client, casino and gaming day: total bet and total win in EUR (machines + tables)."
+    data_tests:
+      - unique_combination: {arguments: {columns: [game_date, casino_id, client_id]}}
+    columns:
+      - name: total_bet_eur
+        data_tests: [not_null, non_negative]
+      - name: total_win_eur
+        data_tests: [not_null, non_negative]
+
+  - name: rpt_gaming_machine_daily
+    description: Machine KPIs per gaming day with daily ranks by games played and by profit.
+    data_tests:
+      - unique_combination: {arguments: {columns: [game_date, machine_id]}}
+
+  - name: rpt_gaming_table_daily
+    description: Table KPIs per gaming day with daily ranks by games played and by profit.
+    data_tests:
+      - unique_combination: {arguments: {columns: [game_date, table_id]}}
+
+  - name: rpt_top_assets_daily
+    description: "**Q6-Q9** - per gaming day, the machine / table with most games played and with most profit (ties listed)."
+    data_tests:
+      - unique_combination: {arguments: {columns: [game_date, asset_type, metric]}}
+    columns:
+      - name: metric
+        data_tests:
+          - accepted_values: {arguments: {values: ['most_games_played', 'most_profit_eur']}}

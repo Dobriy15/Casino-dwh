@@ -1,0 +1,11 @@
+casino_dwh:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('DUCKDB_PATH', '../warehouse/casino_dwh.duckdb') }}"
+      threads: 4
+    ci:
+      type: duckdb
+      path: ":memory:"
+      threads: 4
